@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBER RACER: WIREFRAME 45°</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: #05050d;
+            overflow: hidden;
+            user-select: none;
+        }
+        .neon-cyan {
+            color: #00ffff;
+            text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+        }
+        .neon-pink {
+            color: #ff00aa;
+            text-shadow: 0 0 5px #ff00aa, 0 0 10px #ff00aa;
+        }
+        .neon-yellow {
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+        }
+        .wire-btn {
+            background: transparent;
+            border: 1px dashed #00ffff;
+            color: #00ffff;
+            padding: 14px 38px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .wire-btn:hover {
+            box-shadow: 0 0 15px #00ffff, inset 0 0 10px rgba(0,255,255,0.1);
+            border-style: solid;
+        }
+        .wire-btn:active {
+            transform: scale(0.93);
+            box-shadow: 0 0 25px #00ffff, 0 0 50px #00ffff, inset 0 0 20px rgba(0,255,255,0.3);
+            transition: all 0.05s;
+        }
+        .click-flash {
+            animation: btnPulse 0.35s ease-out;
+        }
+        @keyframes btnPulse {
+            0% { box-shadow: 0 0 5px #00ffff, 0 0 20px #00ffff; transform: scale(0.92); }
+            50% { box-shadow: 0 0 30px #00ffff, 0 0 60px #00ffff, 0 0 90px #ff00aa; transform: scale(1.06); }
+            100% { box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; transform: scale(1); }
+        }
+        .wire-panel {
+            border: 1px solid #00ffff;
+            background: rgba(0,20,40,0.3);
+            position: relative;
+        }
+        .wire-panel::before, .wire-panel::after,
+        .wire-panel .corner-tr, .wire-panel .corner-bl {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #00ffff;
+        }
+        .wire-panel::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .wire-panel::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+        .wire-panel .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .wire-panel .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                transparent 0px,
+                rgba(0,255,255,0.03) 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        /* 手机横屏 - HUD紧凑模式 */
+        @media (max-height: 500px) and (orientation: landscape) {
+            #gameHUD { padding-left:0.5rem; padding-right:0.5rem; }
+            #gameHUD .wire-panel { padding: 0.3rem 0.5rem; }
+            #gameHUD .wire-panel p.text-lg { font-size: 0.8rem; }
+            #gameHUD .wire-panel p.text-\[10px\] { font-size: 7px; }
+            #gameHUD .wire-panel.w-28 { width: 5rem; }
+            #gameHUD .wire-panel.w-32 { width: 6rem; }
+            #gameHUD .flex.gap-1\.5 { gap: 0.25rem; }
+            #gameHUD #laneDots span { width:5px; height:5px; }
+            #gameHUD #energyBar { height: 0.4rem; }
+            #mobileControls button { width:3rem; height:3rem; font-size:1.2rem; }
+            #mobileControls button.w-24 { width:3.5rem; height:3.5rem; }
+            #mobileControls { bottom:0.5rem; }
+            .wire-btn { padding: 0.5rem 1rem; font-size:0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+
+    <!-- 开始界面 -->
+    <div id="startScreen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-[#05050d]">
+        <div class="text-center">
+            <h1 class="cyber-font text-5xl md:text-7xl neon-cyan tracking-[0.3em] mb-2">CYBER</h1>
+            <h1 class="cyber-font text-5xl md:text-7xl neon-pink tracking-[0.3em] mb-6">RACER</h1>
+            <p class="text-gray-500 text-sm tracking-widest mb-10">[ 45° TPS WIREFRAME MODE v2.8 ]</p>
+
+            <div class="wire-panel p-6 mb-10 max-w-sm mx-auto">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="neon-cyan text-sm mb-4 tracking-wider">CONTROL SCHEME</p>
+                <div class="text-gray-400 text-sm space-y-2 text-left">
+                    <p><span class="neon-cyan">A/←</span> 切换左侧车道</p>
+                    <p><span class="neon-pink">D/→</span> 切换右侧车道</p>
+                    <p><span class="neon-cyan">W/↑</span> 普通加速（200km/h）</p>
+                    <p><span class="neon-yellow">X</span> 超频加速（288km/h，耗能量）</p>
+                    <p><span class="text-purple-400">S/↓</span> 减速制动</p>
+                    <p><span class="neon-yellow">●</span> 能量球：拾取+35能量</p>
+                    <p><span class="neon-pink">xN</span> 连续超车Combo最高5倍加分</p>
+                    <p><span class="text-green-400">ESC</span> 暂停/继续</p>
+                    <p class="mt-2 pt-2 border-t border-[rgba(0,255,255,0.2)]"><button id="mobileModeBtnStart" class="wire-btn neon-pink text-sm py-2 px-5">[ 手机模式 ]</button></p>
+                </div>
+            </div>
+            <button id="startBtn" class="wire-btn">INITIATE SEQUENCE</button>
+            <p class="text-gray-600 text-xs mt-8">PRESS SPACE TO START</p>
+        </div>
+    </div>
+
+    <!-- 暂停界面 -->
+    <div id="pauseScreen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-black/80 hidden">
+        <div class="text-center">
+            <h1 class="cyber-font text-4xl md:text-6xl neon-cyan tracking-widest mb-8">SYSTEM PAUSED</h1>
+            
+            <div class="wire-panel p-6 mb-8 min-w-[320px]">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-xs mb-4">BACKGROUND MUSIC</p>
+                <div class="mb-4">
+                    <label class="wire-btn inline-block text-sm mb-2 cursor-pointer" for="bgmInput">SELECT MUSIC FILE</label>
+                    <input type="file" id="bgmInput" accept="audio/*" class="hidden">
+                    <p id="bgmName" class="text-gray-400 text-xs mt-2 truncate">No file selected</p>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="neon-pink text-sm">BGM</span>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.3" class="flex-1 accent-[#ff00aa]">
+                    <span id="volumeValue" class="neon-pink text-sm w-10 text-right">30%</span>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="neon-cyan text-sm">ENG</span>
+                    <input type="range" id="engineVolumeSlider" min="0" max="1" step="0.01" value="0.7" class="flex-1 accent-[#00ffff]">
+                    <span id="engineVolumeValue" class="neon-cyan text-sm w-10 text-right">70%</span>
+                </div>
+                <button id="bgmToggleBtn" class="wire-btn text-sm py-2 px-4 mb-2">MUSIC: OFF</button>
+                <button id="sfxToggleBtn" class="wire-btn text-sm py-2 px-4">SFX: ON</button>
+            </div>
+            <button id="resumeBtn" class="wire-btn mb-4">RESUME SEQUENCE</button>
+            <button id="mainMenuBtn" class="wire-btn border-pink-500 text-pink-400 hover:shadow-[0_0_15px_#ff00aa]">RETURN TO MAIN MENU</button>
+            <p class="text-gray-600 text-xs mt-8">PRESS ESC TO RESUME</p>
+            <button id="mobileModeBtnPause" class="wire-btn neon-pink text-sm py-2 px-5 mt-4">[ 手机模式 ]</button>
+        </div>
+    </div>
+
+    <!-- 手机虚拟按键 -->
+    <div id="mobileControls" class="fixed bottom-6 left-0 right-0 z-30 px-6 hidden">
+        <div class="flex justify-between items-end">
+            <div class="flex gap-4">
+                <button id="btnLeft" class="wire-btn w-20 h-20 flex items-center justify-center text-3xl">←</button>
+                <button id="btnRight" class="wire-btn w-20 h-20 flex items-center justify-center text-3xl">→</button>
+            </div>
+            <div class="flex gap-4 items-end">
+                <button id="btnBrake" class="wire-btn w-20 h-20 flex items-center justify-center text-2xl">S</button>
+                <button id="btnAccel" class="wire-btn w-20 h-20 flex items-center justify-center text-2xl neon-cyan">W</button>
+                <button id="btnBoost" class="wire-btn w-24 h-24 flex items-center justify-center text-2xl neon-yellow border-yellow-400 border-2">X</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结束界面 -->
+    <div id="gameOverScreen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-black/80 hidden">
+        <div class="text-center">
+            <h1 class="cyber-font text-4xl md:text-6xl text-red-500 tracking-widest mb-8" style="text-shadow:0 0 15px #ff0040">SYSTEM FAILURE</h1>
+            
+            <div class="wire-panel p-6 mb-8 min-w-[280px]">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-xs mb-2">FINAL SCORE</p>
+                <p id="finalScore" class="text-4xl neon-yellow font-bold mb-6">0</p>
+                <p class="text-gray-500 text-xs mb-2">HIGH SCORE</p>
+                <p id="highScore" class="text-2xl neon-cyan font-bold">0</p>
+            </div>
+            <button id="restartBtn" class="wire-btn">REBOOT SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="gameHUD" class="fixed top-4 left-0 right-0 z-40 px-4 hidden">
+        <div class="max-w-lg mx-auto flex justify-between mb-3">
+            <div class="wire-panel px-4 py-2 w-28">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-[10px]">SCORE</p>
+                <p id="scoreDisplay" class="text-lg neon-cyan font-bold">0</p>
+            </div>
+            <div id="lanePanel" class="wire-panel px-4 py-2 flex items-center justify-center gap-1.5">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <div id="laneDots" class="flex gap-1.5"></div>
+            </div>
+            <div class="wire-panel px-4 py-2 w-32">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-[10px]">VELOCITY</p>
+                <p id="speedDisplay" class="text-lg neon-pink font-bold">0 <span class="text-[10px]">KM/H</span></p>
+            </div>
+            <div id="comboPanel" class="wire-panel px-4 py-2 w-24 hidden">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-[10px]">COMBO</p>
+                <p id="comboDisplay" class="text-lg neon-yellow font-bold">x1</p>
+            </div>
+            <div id="threatPanel" class="wire-panel px-4 py-2 w-28">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <p class="text-gray-500 text-[10px]">THREAT</p>
+                <p id="threatDisplay" class="text-lg font-bold" style="color:#ff0040;text-shadow:0 0 8px #ff0040;">▮▯▯▯▯</p>
+            </div>
+        </div>
+        <div class="max-w-lg mx-auto">
+            <div class="wire-panel px-3 py-2">
+                <span class="corner-tr"></span><span class="corner-bl"></span>
+                <div class="flex items-center gap-2">
+                    <p class="text-gray-500 text-[10px] w-8">ENERGY</p>
+                    <div class="flex-1 h-3 bg-[rgba(0,20,40,0.5)] border border-[rgba(0,255,255,0.3)]">
+                        <div id="energyBar" class="h-full bg-neon-yellow" style="width:100%; background-color: #ffff00; box-shadow:0 0 8px #ffff00;"></div>
+                    </div>
+                    <p id="energyValue" class="text-xs neon-yellow font-bold w-8 text-right">100</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏内暂停按钮 -->
+    <button id="hudPauseBtn" class="fixed top-4 right-4 z-40 hidden wire-btn text-xs py-1.5 px-4 tracking-widest">PAUSE</button>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const laneCount = 3;
+
+        // 45度斜视角相机参数
+        const cam = {
+            vanishX: 0,
+            horizonY: 0,
+            camHeight: 0,
+            camZ: -12, // 相机在玩家后方12单位
+            focal: 380, // 焦距
+            laneWidth: 7, // 单车道宽度
+            drawDist: 320
+        };
+
+        // 路段定义：不同车道数交替，每段长度300~500单位（降低变化频率），同时包含弯道曲率
+        let roadSegments = [];
+        let curveOffset = 0; // 当前道路中心偏移，用于弯道
+        let curveDir = 0; // 当前弯道方向 -1左/0直/1右
+        function generateRoadSegments() {
+            roadSegments = [];
+            let z = 0;
+            let currentLanes = 3;
+            while(z < cam.drawDist + 400) {
+                const segLen = 200 + Math.random()*150; // 调整段长，频率适中
+                const curve = (Math.random() - 0.5) * 0.03; // 随机弯道曲率，最大0.03偏移/单位距离
+                roadSegments.push({zStart: z, zEnd: z+segLen, lanes: currentLanes, curve: curve});
+                z += segLen;
+                // 车道数变化：2<->3<->4，不跳变，15%概率不变车道数
+                if(currentLanes === 3) {
+                    if(Math.random() < 0.15) continue;
+                    currentLanes = Math.random()>0.5 ? 2 : 4;
+                } else {
+                    if(Math.random() < 0.2) continue;
+                    currentLanes = 3;
+                }
+            }
+        }
+
+        // 获取指定z位置的弯道偏移
+        function getRoadCurve(z) {
+            for(let seg of roadSegments) {
+                if(z >= seg.zStart && z < seg.zEnd) return seg.curve;
+            }
+            return 0;
+        }
+
+        // 获取指定z位置的车道数和过渡系数
+        function getRoadInfo(z) {
+            const transitionLen = 40; // 过渡段长度
+            for(let i=0; i<roadSegments.length; i++) {
+                const seg = roadSegments[i];
+                if(z >= seg.zStart && z < seg.zEnd) {
+                    // 检查是否在过渡段（接近段末尾，且下一段车道数不同）
+                    if(i < roadSegments.length-1) {
+                        const nextSeg = roadSegments[i+1];
+                        const distToEnd = seg.zEnd - z;
+                        if(distToEnd < transitionLen && seg.lanes !== nextSeg.lanes) {
+                            const t = distToEnd / transitionLen; // 1->0过渡
+                            const lanes = seg.lanes * t + nextSeg.lanes * (1-t);
+                            return {lanes: lanes, width: lanes * cam.laneWidth};
+                        }
+                    }
+                    return {lanes: seg.lanes, width: seg.lanes * cam.laneWidth};
+                }
+            }
+            // 超出范围返回最后一段
+            const lastSeg = roadSegments[roadSegments.length-1];
+            return {lanes: lastSeg.lanes, width: lastSeg.lanes * cam.laneWidth};
+        }
+        let glitchOffset = 0;
+        let scanY = 0;
+
+        // 游戏状态
+        let gameRunning = false;
+        let gamePaused = false;
+        let countdownActive = false;
+        let countdownTimer = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('wireRacerHigh45') || 0;
+        let speed = 0;
+        const boostMaxSpeed = 1.8; // 超频极速：1.8*160=288km/h
+        const normalMaxSpeed = 1.25; // 普通急速上限：1.25*160=200km/h（无能量时最高）
+        let baseSpeed = 0.9; // 巡航速度：0.9*160=144km/h
+        let spawnCooldown = 60;
+        // 能量系统
+        let energy = 100;
+        const maxEnergy = 100;
+        const energyDrainPerSec = 12.5; // 每秒消耗，满能量刚好8秒（100/12.5=8）
+        let energyOrbs = [];
+        let orbSpawnCooldown = 0;
+        // 成就/里程碑系统
+        const triggeredMilestones = new Set();
+        const notifications = [];
+        const milestones = [
+            { id:'first_overtake', text:'FIRST BYPASS', check:() => combo >= 1 },
+            { id:'combo_x3', text:'COMBO x3!', check:() => Math.min(5, 1+Math.floor(combo/3)) >= 3 },
+            { id:'combo_x5', text:'MAX COMBO x5!', check:() => Math.min(5, 1+Math.floor(combo/3)) >= 5 },
+            { id:'score_3k', text:'3000 POINTS', check:() => score >= 3000 },
+            { id:'score_8k', text:'8000 POINTS', check:() => score >= 8000 },
+            { id:'score_15k', text:'MAX THREAT', check:() => score >= 15000 },
+            { id:'first_orb', text:'ENERGY +35', check:() => energy >= 65 }, // 初始100，第一次拾取后至少65
+        ];
+        function checkMilestones() {
+            milestones.forEach(m => {
+                if(!triggeredMilestones.has(m.id) && m.check()) {
+                    triggeredMilestones.add(m.id);
+                    notifications.push({ text:m.text, life:150, yOff:30 });
+                }
+            });
+        }
+
+        // 创意玩法：连续超车Combo系统
+        let combo = 0;
+        let comboTimer = 0;
+        const comboTimeout = 180; // 3秒没超车重置Combo
+
+        // 难度递增系统
+        function getDifficulty() {
+            return Math.min(1, score / 15000); // 0~1，15000分达到满难度
+        }
+        function getThreatLevel() {
+            const d = getDifficulty();
+            if(d < 0.2) return 1;
+            if(d < 0.4) return 2;
+            if(d < 0.6) return 3;
+            if(d < 0.8) return 4;
+            return 5;
+        }
+
+        // BGM相关
+        const bgm = new Audio();
+        bgm.loop = true;
+        bgm.volume = 0.3;
+        let bgmPlaying = false;
+
+        // 玩家
+        const player = {
+            lane: 1,
+            targetX: 0,
+            x: 0,
+            tilt: 0,
+            width: 2.4,
+            length: 5,
+            height: 1.3,
+            zNear: 1, // 车尾z坐标（近）
+            zFar: 6   // 车头z坐标（远）
+        };
+
+        // NPC车型定义
+        const vehicleTypes = {
+            car:  { w:2.1, l:4.5, h:1.4, speedOff:0,    weight:60, colors:['#ff00aa','#ffff00','#ff8800','#00ff88'] },
+            truck:{ w:2.8, l:6.5, h:2.2, speedOff:-0.12, weight:20, colors:['#ff4400','#ff6600','#cc3300'] },
+            moto: { w:1.4, l:2.8, h:0.9, speedOff:0.12,  weight:20, colors:['#00ffcc','#00ff88','#88ff00'] }
+        };
+        function randomVehicleType() {
+            const r = Math.random()*100;
+            if(r < 60) return 'car';
+            if(r < 80) return 'truck';
+            return 'moto';
+        }
+
+        let npcs = [], buildings = [], particles = [], stars = [];
+        const keys = {left:false, right:false, accel:false, boost:false, down:false};
+        let mobileMode = false;
+        let sfxEnabled = true;
+        let engineVolume = 0.7; // 引擎音量系数
+
+        function toggleMobileMode() {
+            mobileMode = !mobileMode;
+            const mobileControls = document.getElementById('mobileControls');
+            if(mobileMode) {
+                mobileControls.classList.remove('hidden');
+            } else {
+                mobileControls.classList.add('hidden');
+                keys.left = keys.right = keys.accel = keys.boost = keys.down = false;
+            }
+        }
+
+        // Web Audio音效系统
+        let audioCtx = null;
+        let engineOsc = null, engineGain = null;
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 引擎持续音效
+            engineOsc = audioCtx.createOscillator();
+            engineGain = audioCtx.createGain();
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.value = 80;
+            engineGain.gain.value = 0.03;
+            engineOsc.connect(engineGain);
+            engineGain.connect(audioCtx.destination);
+            engineOsc.start();
+        }
+
+        function playSound(type) {
+            if(!audioCtx || !sfxEnabled) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'boost':
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.2);
+                    break;
+                case 'brake':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'changeLane':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'crash':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.8);
+                    // 爆炸白噪声
+                    const bufferSize = audioCtx.sampleRate * 0.5;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for(let i=0;i<bufferSize;i++) data[i] = Math.random()*2-1;
+                    const noise = audioCtx.createBufferSource();
+                    const noiseGain = audioCtx.createGain();
+                    noise.buffer = buffer;
+                    noiseGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    noise.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    noise.start();
+                    break;
+                case 'score':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'pickup':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(660, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                    break;
+            }
+        }
+
+        // 透视投影（正确的45度斜向下视角，支持弯道偏移）
+        function project(wx, wz, wy=0) {
+            // 计算从0到wz的累计弯道偏移
+            let totalCurve = 0;
+            for(let seg of roadSegments) {
+                if(wz < seg.zStart) break;
+                const segEnd = Math.min(wz, seg.zEnd);
+                const segLen = segEnd - Math.max(seg.zStart, 0);
+                if(segLen > 0) totalCurve += seg.curve * segLen;
+            }
+            const dz = wz - cam.camZ;
+            if(dz <= 0.1) return {x:0, y:0, scale:0, visible:false};
+            const scale = cam.focal / dz;
+            // 玩家视角自动跟随弯道中心
+            const adjustedX = wx - totalCurve;
+            const screenX = cam.vanishX + adjustedX * scale;
+            const screenY = cam.horizonY + (cam.camHeight - wy) * scale;
+            return {
+                x: screenX + glitchOffset,
+                y: screenY,
+                scale: scale,
+                visible: screenY > cam.horizonY
+            };
+        }
+
+        // 画布自适应
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cam.vanishX = canvas.width / 2;
+            cam.horizonY = canvas.height * 0.25; // 地平线在屏幕1/4处，45度俯角
+            // 自动计算相机高度，保证近处路面在屏幕90%位置
+            const nearScale = cam.focal / (0 - cam.camZ);
+            cam.camHeight = (0.9 * canvas.height - cam.horizonY) / nearScale;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        generateRoadSegments(); // 初始化路段，避免首次渲染无数据
+
+        // 初始化
+        function init() {
+            player.lane = 1;
+            player.x = 0;
+            player.targetX = 0;
+            player.tilt = 0;
+            score = 0;
+            speed = baseSpeed;
+            energy = maxEnergy;
+            energyOrbs = [];
+            orbSpawnCooldown = 300; // 初始5秒后才开始刷能量球
+            triggeredMilestones.clear();
+            notifications.length = 0;
+            window._dataPackets = [];
+            npcs = [];
+            buildings = [];
+            particles = [];
+            stars = [];
+            spawnCooldown = 60;
+
+            // 生成路段
+            generateRoadSegments();
+
+            // 生成星空
+            for(let i=0; i<120; i++) {
+                stars.push({
+                    x: Math.random()*canvas.width,
+                    y: Math.random()*cam.horizonY,
+                    size: Math.random()*1.5 +0.5,
+                    twinkle: Math.random()*Math.PI*2
+                });
+            }
+
+            // 生成两侧线框建筑（多种形态）
+            const buildingShapes = ['box','box','box','spire','spire','tower','billboard'];
+            const bColors = ['#ff00aa','#7a00ff','#00ffff','#ff00aa','#ff8800','#00ff88','#ff00aa','#7a00ff','#ffff00'];
+            for(let side=-1; side<=1; side+=2) {
+                for(let i=0; i<40; i++) {
+                    const z = i*15 + Math.random()*10;
+                    const roadInfo = getRoadInfo(z);
+                    const offset = 6 + Math.random()*12;
+                    const shape = buildingShapes[Math.floor(Math.random()*buildingShapes.length)];
+                    const baseW = shape==='tower' ? 3+Math.random()*3 : 4+Math.random()*7;
+                    const baseD = shape==='billboard' ? 2+Math.random()*3 : 5+Math.random()*7;
+                    const baseH = shape==='tower' ? 18+Math.random()*22 : shape==='spire' ? 12+Math.random()*18 : 8+Math.random()*28;
+                    buildings.push({
+                        baseOffset: offset,
+                        x: side * (roadInfo.width/2 + offset),
+                        z: z,
+                        w: baseW,
+                        d: baseD,
+                        h: baseH,
+                        shape: shape,
+                        color: bColors[Math.floor(Math.random()*bColors.length)]
+                    });
+                }
+            }
+        }
+
+        // 线框立方体绘制（近大远小、近粗远细、近实远虚）
+        function drawWireBox(wx, wz, w, l, h, color, glow=10) {
+            const corners = [
+                {x:wx-w/2, z:wz+l/2, y:0}, // 近底
+                {x:wx+w/2, z:wz+l/2, y:0},
+                {x:wx+w/2, z:wz-l/2, y:0}, // 远底
+                {x:wx-w/2, z:wz-l/2, y:0},
+                {x:wx-w/2, z:wz+l/2, y:h}, // 近顶
+                {x:wx+w/2, z:wz+l/2, y:h},
+                {x:wx+w/2, z:wz-l/2, y:h}, // 远顶
+                {x:wx-w/2, z:wz-l/2, y:h}
+            ];
+            const p = corners.map(c => project(c.x, c.z, c.y));
+            if(!p[0].visible) return;
+
+            const alpha = Math.min(1, p[0].scale * 0.05);
+            const lineW = Math.max(0.5, p[0].scale * 0.07);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineW;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = glow * p[0].scale * 0.1;
+            ctx.globalAlpha = alpha;
+
+            ctx.beginPath();
+            // 底面
+            for(let i=0; i<4; i++) {
+                ctx.moveTo(p[i].x, p[i].y);
+                ctx.lineTo(p[(i+1)%4].x, p[(i+1)%4].y);
+            }
+            // 顶面
+            for(let i=4; i<8; i++) {
+                ctx.moveTo(p[i].x, p[i].y);
+                ctx.lineTo(p[(i+1)%4 +4].x, p[(i+1)%4 +4].y);
+            }
+            // 竖棱
+            for(let i=0; i<4; i++) {
+                ctx.moveTo(p[i].x, p[i].y);
+                ctx.lineTo(p[i+4].x, p[i+4].y);
+            }
+            ctx.stroke();
+
+            // 顶点节点
+            ctx.fillStyle = color;
+            p.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, Math.max(0.8, point.scale*0.05), 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+
+        // 尖顶建筑
+        function drawSpireBuilding(wx, wz, w, l, h, color) {
+            const baseH = h * 0.6;
+            const spireH = h * 0.4;
+            // 底座
+            drawWireBox(wx, wz, w, l, baseH, color, 6);
+            // 尖顶四条棱
+            const baseCorners = [
+                {x:wx-w/2, z:wz+l/2, y:baseH},
+                {x:wx+w/2, z:wz+l/2, y:baseH},
+                {x:wx+w/2, z:wz-l/2, y:baseH},
+                {x:wx-w/2, z:wz-l/2, y:baseH}
+            ];
+            const apex = project(wx, wz, baseH + spireH);
+            const bp = baseCorners.map(c => project(c.x, c.z, c.y));
+            if(!apex.visible) return;
+            const alpha = Math.min(1, apex.scale * 0.05);
+            ctx.strokeStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 6 * apex.scale * 0.1;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = Math.max(0.5, apex.scale * 0.06);
+            ctx.beginPath();
+            bp.forEach(p => { ctx.moveTo(p.x, p.y); ctx.lineTo(apex.x, apex.y); });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+
+        // 广告牌建筑
+        function drawBillboard(wx, wz, w, l, h, color) {
+            const poleH = h * 0.5;
+            const signW = w * 1.6;
+            const signH = h * 0.4;
+            const signD = l * 0.3;
+            // 支柱
+            const poleBase = project(wx, wz, 0);
+            const poleTop = project(wx, wz, poleH);
+            if(!poleBase.visible) return;
+            const alpha = Math.min(1, poleBase.scale * 0.05);
+            ctx.strokeStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8 * poleBase.scale * 0.1;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = Math.max(0.5, poleBase.scale * 0.06);
+            // 四根支柱
+            const corners = [
+                {x:wx-signW/2, z:wz+signD/2}, {x:wx+signW/2, z:wz+signD/2},
+                {x:wx+signW/2, z:wz-signD/2}, {x:wx-signW/2, z:wz-signD/2}
+            ];
+            corners.forEach(c => {
+                const bp = project(c.x, c.z, 0);
+                const tp = project(c.x, c.z, poleH);
+                ctx.beginPath();
+                ctx.moveTo(bp.x, bp.y);
+                ctx.lineTo(tp.x, tp.y);
+                ctx.stroke();
+            });
+            // 广告牌面
+            const faceCorners = corners.map(c => project(c.x, c.z, poleH + signH/2));
+            const fb = corners.map(c => project(c.x, c.z, poleH));
+            const ft = corners.map(c => project(c.x, c.z, poleH + signH));
+            ctx.beginPath();
+            // 顶面
+            for(let i=0; i<4; i++) { ctx.moveTo(ft[i].x,ft[i].y); ctx.lineTo(ft[(i+1)%4].x,ft[(i+1)%4].y); }
+            // 底面
+            for(let i=0; i<4; i++) { ctx.moveTo(fb[i].x,fb[i].y); ctx.lineTo(fb[(i+1)%4].x,fb[(i+1)%4].y); }
+            // 竖棱
+            for(let i=0; i<4; i++) { ctx.moveTo(fb[i].x,fb[i].y); ctx.lineTo(ft[i].x,ft[i].y); }
+            ctx.stroke();
+            // 模拟文字的水平线
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(0.3, faceCorners[0].scale * 0.03);
+            for(let ty=0.2; ty<1; ty+=0.2) {
+                const ly = poleH + signH * ty;
+                const lp1 = project(corners[0].x, corners[0].z, ly);
+                const lp2 = project(corners[1].x, corners[1].z, ly);
+                ctx.beginPath();
+                ctx.moveTo(lp1.x, lp1.y);
+                ctx.lineTo(lp2.x, lp2.y);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制道路
+        function drawRoad() {
+            const step = 8;
+            // 生成道路边缘点
+            const leftPoints = [], rightPoints = [];
+            for(let z=0; z<=cam.drawDist; z+=step) {
+                const roadInfo = getRoadInfo(z);
+                leftPoints.push({p: project(-roadInfo.width/2, z), lanes: roadInfo.lanes});
+                rightPoints.push({p: project(roadInfo.width/2, z), lanes: roadInfo.lanes});
+            }
+
+            // 路面深色填充
+            ctx.fillStyle = 'rgba(10,10,25,0.8)';
+            ctx.beginPath();
+            ctx.moveTo(leftPoints[0].p.x, leftPoints[0].p.y);
+            leftPoints.forEach(pt => ctx.lineTo(pt.p.x, pt.p.y));
+            for(let i=rightPoints.length-1; i>=0; i--) ctx.lineTo(rightPoints[i].p.x, rightPoints[i].p.y);
+            ctx.closePath();
+            ctx.fill();
+
+            // 横向网格线
+            ctx.strokeStyle = 'rgba(0,255,255,0.12)';
+            ctx.lineWidth = 1;
+            for(let z=0; z<cam.drawDist; z+=15) {
+                const roadInfo = getRoadInfo(z);
+                const p1 = project(-roadInfo.width/2, z);
+                const p2 = project(roadInfo.width/2, z);
+                if(!p1.visible) continue;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // 车道分隔线（最多3条，适配2/3/4车道）
+            ctx.strokeStyle = 'rgba(0,255,255,0.4)';
+            const dashScale = project(0,20).scale;
+            ctx.setLineDash([12*dashScale, 18*dashScale]);
+            ctx.lineWidth = Math.max(1, 2*dashScale*0.07);
+            const maxDividers = 3;
+            for(let i=1; i<=maxDividers; i++) {
+                ctx.beginPath();
+                let first = true;
+                let started = false;
+                for(let z=0; z<=cam.drawDist; z+=step) {
+                    const roadInfo = getRoadInfo(z);
+                    // 只有当前车道数大于i时才绘制该分隔线
+                    if(roadInfo.lanes <= i) {
+                        started = false;
+                        continue;
+                    }
+                    const lx = -roadInfo.width/2 + i * cam.laneWidth;
+                    const p = project(lx, z);
+                    if(!p.visible) continue;
+                    if(first || !started) { ctx.moveTo(p.x, p.y); first = false; started = true; }
+                    else ctx.lineTo(p.x, p.y);
+                }
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+
+            // 网格交点发光点
+            ctx.fillStyle = 'rgba(0,255,255,0.5)';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 6;
+            for(let z=0; z<cam.drawDist; z+=15) {
+                const roadInfo = getRoadInfo(z);
+                const numDividers = Math.floor(roadInfo.lanes);
+                for(let i=0; i<=numDividers; i++) {
+                    const lx = -roadInfo.width/2 + i * cam.laneWidth;
+                    const p = project(lx, z);
+                    if(!p.visible) continue;
+                    const r = Math.max(0.8, p.scale * 0.08);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+            ctx.shadowBlur = 0;
+
+            // 数据流粒子（沿车道分隔线流动）
+            if(!window._dataPackets) window._dataPackets = [];
+            const packets = window._dataPackets;
+            // 每帧概率生成新粒子
+            if(Math.random() < 0.4) {
+                const divIdx = Math.floor(Math.random() * 4); // 0=左边缘, 1-3=分隔线
+                packets.push({ div: divIdx, z: cam.drawDist - 10 });
+            }
+            // 限制粒子总数
+            if(packets.length > 40) packets.splice(0, packets.length - 40);
+            // 绘制并更新
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 10;
+            for(let i=packets.length-1; i>=0; i--) {
+                const pk = packets[i];
+                pk.z -= speed * 2.5;
+                if(pk.z < 0) { packets.splice(i,1); continue; }
+                const roadInfo = getRoadInfo(pk.z);
+                if(pk.div > Math.floor(roadInfo.lanes)) continue; // 分隔线不存在
+                const lx = -roadInfo.width/2 + pk.div * cam.laneWidth;
+                const p = project(lx, pk.z, 0.1);
+                if(!p.visible) continue;
+                const r = Math.max(0.5, p.scale * 0.06);
+                ctx.globalAlpha = Math.min(1, p.scale * 0.05);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+
+            // 道路边缘粉线
+            ctx.strokeStyle = '#ff00aa';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ff00aa';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            leftPoints.forEach((pt,i) => i===0 ? ctx.moveTo(pt.p.x,pt.p.y) : ctx.lineTo(pt.p.x,pt.p.y));
+            ctx.stroke();
+            ctx.beginPath();
+            rightPoints.forEach((pt,i) => i===0 ? ctx.moveTo(pt.p.x,pt.p.y) : ctx.lineTo(pt.p.x,pt.p.y));
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制环境
+        function drawEnvironment() {
+            // 天空渐变
+            const skyGrad = ctx.createLinearGradient(0,0,0,cam.horizonY);
+            skyGrad.addColorStop(0, '#05050d');
+            skyGrad.addColorStop(1, 'rgba(122,0,255,0.2)');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0,0,canvas.width, cam.horizonY);
+
+            // 星空
+            stars.forEach(star => {
+                const bright = 0.3 + Math.sin(Date.now()/500 + star.twinkle)*0.4;
+                ctx.fillStyle = `rgba(255,255,255,${bright})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // 地平线光晕
+            const horizonGrad = ctx.createRadialGradient(cam.vanishX, cam.horizonY, 0, cam.vanishX, cam.horizonY, 300);
+            horizonGrad.addColorStop(0, 'rgba(0,255,255,0.25)');
+            horizonGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = horizonGrad;
+            ctx.fillRect(0, cam.horizonY-150, canvas.width, 300);
+
+            // 建筑（远到近绘制）
+            buildings.sort((a,b)=>b.z - a.z);
+            buildings.forEach(b => {
+                b.z -= speed;
+                if(b.z < -30) {
+                    b.z = cam.drawDist + Math.random()*100;
+                    const roadInfo = getRoadInfo(b.z);
+                    b.baseOffset = 6 + Math.random()*12;
+                    b.x = Math.sign(b.x) * (roadInfo.width/2 + b.baseOffset);
+                    // 回收时随机更换形态和尺寸
+                    const newShapes = ['box','box','box','spire','spire','tower','billboard'];
+                    b.shape = newShapes[Math.floor(Math.random()*newShapes.length)];
+                    if(b.shape === 'tower') { b.w = 3+Math.random()*3; b.h = 18+Math.random()*22; }
+                    else if(b.shape === 'spire') { b.w = 4+Math.random()*7; b.h = 12+Math.random()*18; }
+                    else if(b.shape === 'billboard') { b.w = 4+Math.random()*7; b.d = 2+Math.random()*3; b.h = 12+Math.random()*18; }
+                    else { b.w = 4+Math.random()*7; b.d = 5+Math.random()*7; b.h = 8+Math.random()*28; }
+                }
+                // 动态调整建筑x坐标，跟随车道数（路宽）变化
+                const currentRoadInfo = getRoadInfo(b.z);
+                const targetX = Math.sign(b.x) * (currentRoadInfo.width/2 + b.baseOffset);
+                b.x += (targetX - b.x)*0.1;
+                if(b.shape === 'spire') drawSpireBuilding(b.x, b.z, b.w, b.d, b.h, b.color);
+                else if(b.shape === 'billboard') drawBillboard(b.x, b.z, b.w, b.d, b.h, b.color);
+                else drawWireBox(b.x, b.z, b.w, b.d, b.h, b.color, 8); // box / tower
+            });
+        }
+
+        // 绘制玩家赛车
+        function drawPlayer() {
+            ctx.save();
+            const center = project(player.x, player.zNear + player.length/2, player.height/2);
+            ctx.translate(center.x, center.y);
+            ctx.rotate(player.tilt * 0.08);
+            ctx.translate(-center.x, -center.y);
+
+            // 车身
+            drawWireBox(player.x, (player.zNear + player.zFar)/2, player.width, player.length, player.height, '#00ffff', 20);
+            // 尾翼
+            const w1 = project(player.x - player.width/2 -0.4, player.zNear, player.height);
+            const w2 = project(player.x + player.width/2 +0.4, player.zNear, player.height);
+            const w3 = project(player.x - player.width/2 -0.4, player.zNear, player.height+0.6);
+            const w4 = project(player.x + player.width/2 +0.4, player.zNear, player.height+0.6);
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(w3.x, w3.y);
+            ctx.lineTo(w4.x, w4.y);
+            ctx.moveTo(w1.x,w1.y);
+            ctx.lineTo(w3.x,w3.y);
+            ctx.moveTo(w2.x,w2.y);
+            ctx.lineTo(w4.x,w4.y);
+            ctx.stroke();
+
+            // 尾焰
+            if(speed > 0.8) {
+                ctx.strokeStyle = '#ff00aa';
+                ctx.shadowColor = '#ff00aa';
+                ctx.lineWidth = 2;
+                for(let i=0; i<6; i++) {
+                    const ex = project(player.x + (Math.random()-0.5)*player.width*0.7, player.zNear -1);
+                    const flameLen = 15 + speed*20 + Math.random()*25;
+                    ctx.beginPath();
+                    ctx.moveTo(ex.x, ex.y);
+                    ctx.lineTo(ex.x + (Math.random()-0.5)*10, ex.y + flameLen);
+                    ctx.stroke();
+                }
+            }
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
+        // 绘制NPC车辆
+        function drawNPCs() {
+            npcs.sort((a,b)=>b.z - a.z);
+            npcs.forEach(npc => {
+                let color = npc.color;
+                let glow = 10;
+                // 近距离碰撞预警
+                if(npc.z < 120) {
+                    const warnLevel = 1 - npc.z/120;
+                    if(npc.z < 50 && Math.floor(Date.now()/120)%2) color = '#ff0000';
+                    glow = 10 + warnLevel*25;
+                }
+                drawWireBox(npc.x, npc.z, npc.width, npc.length, npc.height, color, glow);
+            });
+        }
+
+        // 智能车流系统
+        function updateTraffic() {
+            spawnCooldown--;
+            const diff = getDifficulty();
+            const carCount = npcs.length;
+            if(spawnCooldown <= 0) {
+                // 难度影响：基础冷却从55降到30，最高密度翻倍
+                let baseCD = 55 - diff * 25;
+                let cd = baseCD - speed*15;
+                const maxCars = 5 + Math.floor(diff * 6); // 难度0→最多5辆，满难度→最多11辆
+                if(carCount < maxCars - 2) cd *= 0.5;
+                if(carCount > maxCars) cd *= 2.2;
+                spawnCooldown = cd + Math.random()*30;
+
+                const spawnZ = cam.drawDist - 20;
+                const spawnRoadInfo = getRoadInfo(spawnZ);
+                const currentLaneCount = Math.round(spawnRoadInfo.lanes);
+                // 根据车型选择车道：卡车偏好右侧慢车道，摩托偏好左侧快车道
+                const vType = randomVehicleType();
+                const vDef = vehicleTypes[vType];
+                let lane;
+                if(vType === 'truck' && currentLaneCount >= 2) {
+                    lane = currentLaneCount - 1 - Math.floor(Math.random()*Math.min(2, currentLaneCount)); // 靠右1-2条
+                } else if(vType === 'moto' && currentLaneCount >= 2) {
+                    lane = Math.floor(Math.random()*Math.min(2, currentLaneCount)); // 靠左1-2条
+                } else {
+                    lane = Math.floor(Math.random()*currentLaneCount);
+                }
+                const laneX = -spawnRoadInfo.width/2 + cam.laneWidth/2 + lane*cam.laneWidth;
+                let blocked = false;
+                npcs.forEach(npc => {
+                    if(npc.lane === lane && npc.z > cam.drawDist - 50) blocked = true;
+                });
+                if(blocked) return;
+
+                // 车道速度逻辑 + 车型速度偏移 + 难度加成
+                const diffBonus = diff * 0.15;
+                const speedDiff = [-0.3, -0.1, 0.1, 0.25];
+                const laneSpeedOff = speedDiff[lane] !== undefined ? speedDiff[lane] : 0;
+                const baseSpd = speed + laneSpeedOff + vDef.speedOff + diffBonus;
+                npcs.push({
+                    x: laneX,
+                    z: spawnZ,
+                    lane: lane,
+                    speed: baseSpd,
+                    type: vType,
+                    width: vDef.w,
+                    length: vDef.l,
+                    height: vDef.h,
+                    color: vDef.colors[Math.floor(Math.random()*vDef.colors.length)]
+                });
+            }
+
+            // 更新NPC位置+跟车逻辑+随车道变化调整位置
+            npcs.forEach((npc, idx) => {
+                const currentRoadInfo = getRoadInfo(npc.z);
+                const currentMaxLane = Math.floor(currentRoadInfo.lanes) - 1;
+                // 如果车道消失（从4变3/3变2），自动并入内侧车道
+                if(npc.lane > currentMaxLane) npc.lane = currentMaxLane;
+
+                // 找前车
+                let minGap = Infinity;
+                let frontCar = null;
+                npcs.forEach(other => {
+                    if(other.lane === npc.lane && other.z < npc.z) {
+                        const gap = npc.z - other.z;
+                        if(gap < minGap && gap>0) {
+                            minGap = gap;
+                            frontCar = other;
+                        }
+                    }
+                });
+                // 跟车减速
+                if(minGap < 18 && frontCar) {
+                    npc.speed += (frontCar.speed - npc.speed)*0.12;
+                } else {
+                    // 回到车道基准速度（含难度加成+车型偏移）
+                    const diffBonus2 = diff * 0.15;
+                    const speedDiff = [-0.3, -0.1, 0.1, 0.25];
+                    const vDef2 = vehicleTypes[npc.type] || vehicleTypes.car;
+                    const baseSpd = speed + (speedDiff[npc.lane] !== undefined ? speedDiff[npc.lane] + diffBonus2 : 0) + vDef2.speedOff;
+                    npc.speed += (baseSpd - npc.speed)*0.02;
+                }
+
+                npc.z -= (speed - npc.speed);
+
+                // 根据当前位置的车道数调整X坐标，保持在对应车道中心
+                const targetX = -currentRoadInfo.width/2 + cam.laneWidth/2 + npc.lane*cam.laneWidth;
+                npc.x += (targetX - npc.x)*0.15;
+                // 移除超出范围的车
+                if(npc.z < -10 || npc.z > cam.drawDist + 50) {
+                    npcs.splice(idx,1);
+                    if(npc.z < -10) {
+                        combo++;
+                        comboTimer = comboTimeout;
+                        const comboMultiplier = Math.min(5, 1 + Math.floor(combo/3));
+                        score += 100 * comboMultiplier;
+                        playSound('score');
+                    }
+                }
+                // 碰撞检测（使用实际车宽）
+                if(npc.z < player.zFar + 2 && npc.z > player.zNear - 2) {
+                    const collisionThreshold = (player.width + npc.width) / 2;
+                    if(Math.abs(npc.x - player.x) < collisionThreshold) {
+                        playSound('crash');
+                        crash();
+                    }
+                }
+            });
+        }
+
+        // 能量球系统
+        function updateEnergyOrbs() {
+            orbSpawnCooldown--;
+            // 能量球生成冷却：12~20秒随机，生成率低
+            if(orbSpawnCooldown <= 0) {
+                orbSpawnCooldown = 720 + Math.random()*480; // 12~20秒
+                const spawnZ = cam.drawDist - 20;
+                const spawnRoadInfo = getRoadInfo(spawnZ);
+                const currentLaneCount = Math.round(spawnRoadInfo.lanes);
+                // 随机选车道，检查该位置是否有NPC阻挡
+                let attempts = 0;
+                let lane, blocked;
+                do {
+                    lane = Math.floor(Math.random()*currentLaneCount);
+                    blocked = false;
+                    npcs.forEach(npc => {
+                        if(npc.lane === lane && Math.abs(npc.z - spawnZ) < 20) blocked = true;
+                    });
+                    attempts++;
+                } while(blocked && attempts < 5);
+                if(blocked) return;
+                const orbX = -spawnRoadInfo.width/2 + cam.laneWidth/2 + lane*cam.laneWidth;
+                energyOrbs.push({
+                    x: orbX,
+                    z: spawnZ,
+                    lane: lane,
+                    rot: 0
+                });
+            }
+
+            // 更新能量球位置，检查拾取
+            energyOrbs.forEach((orb, idx) => {
+                orb.z -= speed;
+                orb.rot += 0.05;
+                // 跟随车道变化
+                const orbRoadInfo = getRoadInfo(orb.z);
+                const orbMaxLane = Math.floor(orbRoadInfo.lanes)-1;
+                if(orb.lane > orbMaxLane) orb.lane = orbMaxLane;
+                const targetX = -orbRoadInfo.width/2 + cam.laneWidth/2 + orb.lane*cam.laneWidth;
+                orb.x += (targetX - orb.x)*0.15;
+
+                // 拾取检测
+                if(orb.z < player.zFar + 1 && orb.z > player.zNear -1) {
+                    if(Math.abs(orb.x - player.x) < 2) {
+                        // 拾取：回复35能量
+                        energy = Math.min(maxEnergy, energy + 35);
+                        const p = project(orb.x, orb.z, 0.8);
+                        spawnParticles(p.x, p.y, '#ffff00', 25);
+                        playSound('pickup');
+                        energyOrbs.splice(idx,1);
+                        score += 50;
+                        return;
+                    }
+                }
+
+                // 移除超出范围的球
+                if(orb.z < -10) energyOrbs.splice(idx,1);
+            });
+        }
+
+        function drawEnergyOrbs() {
+            energyOrbs.forEach(orb => {
+                // 绘制八面线框能量球
+                const center = project(orb.x, orb.z, 0.8);
+                if(!center.visible) return;
+                const r = 1.2 * center.scale * 0.1;
+                ctx.strokeStyle = '#ffff00';
+                ctx.shadowColor = '#ffff00';
+                ctx.shadowBlur = 15 * center.scale *0.1;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = Math.min(1, center.scale*0.05);
+                // 三个旋转的圆环
+                for(let i=0; i<3; i++) {
+                    ctx.beginPath();
+                    ctx.ellipse(center.x, center.y, r, r*0.6, orb.rot + i*Math.PI/3, 0, Math.PI*2);
+                    ctx.stroke();
+                }
+                // 中心光点
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, r*0.3, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur =0;
+            });
+        }
+
+        // 粒子系统
+        function spawnParticles(x,y,color,count) {
+            for(let i=0; i<count; i++) {
+                const angle = Math.random()*Math.PI*2;
+                const vel = 2 + Math.random()*7;
+                particles.push({
+                    x:x, y:y,
+                    vx: Math.cos(angle)*vel,
+                    vy: Math.sin(angle)*vel -2,
+                    life:1,
+                    color:color,
+                    len: 6+Math.random()*12
+                });
+            }
+        }
+        function drawParticles() {
+            particles.forEach((p,idx)=>{
+                ctx.strokeStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+                ctx.lineWidth = 2*p.life;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.vx*p.len*0.1, p.y + p.vy*p.len*0.1);
+                ctx.stroke();
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3;
+                p.life -= 0.02;
+                if(p.life <=0) particles.splice(idx,1);
+            });
+            ctx.globalAlpha =1;
+            ctx.shadowBlur=0;
+        }
+
+        // 速度线
+        function drawSpeedLines() {
+            if(speed < 1) return;
+            ctx.strokeStyle = 'rgba(0,255,255,0.2)';
+            ctx.lineWidth =1;
+            const lineCount = Math.floor(speed*18);
+            for(let i=0; i<lineCount; i++) {
+                const angle = Math.atan2(Math.random()*canvas.height - cam.horizonY, Math.random()*canvas.width - cam.vanishX);
+                const len = 25 + Math.random()*(speed*30);
+                const startR = 80 + Math.random()*400;
+                const sx = cam.vanishX + Math.cos(angle)*startR;
+                const sy = cam.horizonY + Math.sin(angle)*startR;
+                if(sy < cam.horizonY) continue;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(sx + Math.cos(angle)*len, sy + Math.sin(angle)*len);
+                ctx.stroke();
+            }
+        }
+
+        // 全息特效
+        function drawFX() {
+            // 扫描线
+            scanY += 4;
+            if(scanY > canvas.height) scanY =0;
+            ctx.strokeStyle = 'rgba(0,255,255,0.3)';
+            ctx.lineWidth=2;
+            ctx.shadowColor='#00ffff';
+            ctx.shadowBlur=10;
+            ctx.beginPath();
+            ctx.moveTo(0, scanY + glitchOffset);
+            ctx.lineTo(canvas.width, scanY + glitchOffset);
+            ctx.stroke();
+
+            // 雷达圈
+            ctx.strokeStyle = 'rgba(0,255,255,0.12)';
+            ctx.lineWidth=1;
+            ctx.shadowBlur=0;
+            for(let r=60; r<500; r+=90) {
+                ctx.beginPath();
+                ctx.arc(cam.vanishX, cam.horizonY, r + (Date.now()/25 %90), Math.PI*0.2, Math.PI*0.8);
+                ctx.stroke();
+            }
+
+            // 高速暗角特效
+            if(speed > 1.0) {
+                const vignetteStrength = Math.min(0.6, (speed - 0.9) * 0.5);
+                const grad = ctx.createRadialGradient(
+                    canvas.width/2, canvas.height/2, canvas.height*0.3,
+                    canvas.width/2, canvas.height/2, canvas.height*0.8
+                );
+                grad.addColorStop(0, 'transparent');
+                grad.addColorStop(1, `rgba(0,0,0,${vignetteStrength})`);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+            }
+
+            // 换道拖影
+            if(Math.abs(player.tilt) > 0.3) {
+                ctx.strokeStyle = 'rgba(0,255,255,0.2)';
+                ctx.lineWidth = 3;
+                const p = project(player.x, player.zNear);
+                for(let i=0; i<5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x - player.tilt*20 - i*8*Math.sign(player.tilt), p.y);
+                    ctx.lineTo(p.x - player.tilt*40 - i*15*Math.sign(player.tilt), p.y + 30 + i*10);
+                    ctx.stroke();
+                }
+            }
+
+            // 随机故障
+            if(Math.random() < 0.012) {
+                glitchOffset = (Math.random()-0.5)*5;
+                setTimeout(()=>glitchOffset=0, 45);
+            }
+            ctx.shadowBlur=0;
+        }
+
+        // 倒计时系统
+        function updateNotifications() {
+            notifications.forEach(n => n.life--);
+            // 移除过期通知
+            for(let i=notifications.length-1; i>=0; i--) {
+                if(notifications[i].life <= 0) notifications.splice(i,1);
+            }
+        }
+
+        function drawNotifications() {
+            notifications.forEach((n, idx) => {
+                const cx = canvas.width / 2;
+                const progress = n.life / 150; // 1→0
+                const alpha = progress < 0.2 ? progress / 0.2 : 1; // 最后20%淡出
+                const yOff = 60 + idx * 45 + (1-progress) * 30; // 从下方滑入
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.font = 'bold 22px Orbitron';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#ffff00';
+                ctx.shadowColor = '#ffff00';
+                ctx.shadowBlur = 15;
+                ctx.fillText(n.text, cx, yOff);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            });
+        }
+
+        function updateCountdown() {
+            if(!countdownActive) return;
+            countdownTimer--;
+            // 每个数字开始时播放提示音
+            if(countdownTimer === 149 || countdownTimer === 99 || countdownTimer === 49) {
+                playSound('changeLane'); // 短促提示音
+            }
+            if(countdownTimer <= 0) {
+                countdownActive = false;
+                gameRunning = true;
+                document.getElementById('gameHUD').classList.remove('hidden');
+                document.getElementById('hudPauseBtn').classList.remove('hidden');
+                playSound('score'); // GO音效
+            }
+        }
+
+        function drawCountdown() {
+            if(!countdownActive) return;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            let text, scale, alpha;
+
+            if(countdownTimer > 100) {
+                text = '3';
+                const t = (countdownTimer - 100) / 50; // 0→1
+                scale = 1 + (1-t) * 1.5;
+                alpha = Math.min(1, t * 3);
+            } else if(countdownTimer > 50) {
+                text = '2';
+                const t = (countdownTimer - 50) / 50;
+                scale = 1 + (1-t) * 1.5;
+                alpha = Math.min(1, t * 3);
+            } else if(countdownTimer > 0) {
+                text = '1';
+                const t = countdownTimer / 50;
+                scale = 1 + (1-t) * 1.5;
+                alpha = Math.min(1, t * 3);
+            } else {
+                return;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.font = `bold ${Math.floor(120 * scale)}px Orbitron`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 30;
+            ctx.fillText(text, cx, cy);
+            // 外发光轮廓
+            ctx.strokeStyle = 'rgba(0,255,255,0.3)';
+            ctx.lineWidth = 2;
+            ctx.strokeText(text, cx, cy);
+            ctx.restore();
+        }
+
+        // 碰撞
+        function crash() {
+            gameRunning = false;
+            const p = project(player.x, (player.zNear+player.zFar)/2, player.height/2);
+            spawnParticles(p.x, p.y, '#ff0040', 70);
+            spawnParticles(p.x, p.y, '#00ffff', 50);
+            spawnParticles(p.x, p.y, '#ffff00', 30);
+            if(score > highScore) {
+                highScore = score;
+                localStorage.setItem('wireRacerHigh45', highScore);
+            }
+            bgm.pause();
+            setTimeout(()=>{
+                document.getElementById('finalScore').textContent = score;
+                document.getElementById('highScore').textContent = highScore;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+                document.getElementById('gameHUD').classList.add('hidden');
+                document.getElementById('hudPauseBtn').classList.add('hidden');
+            }, 900);
+        }
+
+        // 逻辑更新
+        function update() {
+            if(!gameRunning || gamePaused) return;
+            score += Math.floor(speed*8);
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('speedDisplay').textContent = Math.floor(speed*160);
+
+            // 加减速+能量消耗
+            let targetSpeed = baseSpeed;
+            let boosting = false;
+            if(keys.boost && energy > 0) {
+                targetSpeed = boostMaxSpeed;
+                boosting = true;
+            } else if(keys.accel || keys.boost) { // 能量不足时按X也只能普通加速
+                targetSpeed = normalMaxSpeed;
+            }
+            if(keys.down) targetSpeed = 0.3;
+
+            // 速度过渡
+            if(speed < targetSpeed) speed = Math.min(speed + 0.012, targetSpeed);
+            else if(speed > targetSpeed) speed += (targetSpeed - speed)*0.02;
+            else speed += (baseSpeed - speed)*0.008;
+
+            // 超频消耗能量
+            if(boosting && speed > normalMaxSpeed) {
+                energy -= energyDrainPerSec / 60;
+                if(energy < 0) energy = 0;
+                if(Math.random() < 0.02) playSound('boost');
+            }
+            if(keys.down && Math.random() < 0.03) playSound('brake');
+
+            // 更新能量条UI（渐变色：红->黄->青）
+            const energyBar = document.getElementById('energyBar');
+            const energyValue = document.getElementById('energyValue');
+            const energyPercent = energy/maxEnergy;
+            energyBar.style.width = `${energyPercent*100}%`;
+            energyValue.textContent = Math.round(energy);
+            let eColor;
+            if(energyPercent < 0.2) eColor = '#ff0040';
+            else if(energyPercent < 0.5) {
+                const r = Math.round(255 * (1 - (energyPercent-0.2)/0.3));
+                const g = 255;
+                eColor = `rgb(${r},${g},0)`;
+            } else {
+                const b = Math.round(255 * ((energyPercent-0.5)/0.5));
+                const g = 255;
+                eColor = `rgb(0,${g},${b})`;
+            }
+            energyBar.style.backgroundColor = eColor;
+            energyBar.style.boxShadow = `0 0 8px ${eColor}`;
+            energyValue.style.color = eColor;
+            energyValue.style.textShadow = `0 0 5px ${eColor}`;
+
+            // 更新车道指示器
+            const playerZMid2 = (player.zNear + player.zFar)/2;
+            const laneRoadInfo = getRoadInfo(playerZMid2);
+            const totalLanes = Math.round(laneRoadInfo.lanes);
+            const laneDots = document.getElementById('laneDots');
+            const lanePanel = document.getElementById('lanePanel');
+            if(totalLanes !== parseInt(lanePanel.dataset.lanes || '0')) {
+                lanePanel.dataset.lanes = totalLanes;
+                laneDots.innerHTML = '';
+                for(let i=0; i<totalLanes; i++) {
+                    const dot = document.createElement('span');
+                    dot.style.cssText = 'width:7px;height:7px;border-radius:50%;display:inline-block;border:1px solid rgba(0,255,255,0.4);transition:all 0.2s;';
+                    laneDots.appendChild(dot);
+                }
+            }
+            const dots = laneDots.children;
+            for(let i=0; i<dots.length; i++) {
+                if(i === player.lane) {
+                    dots[i].style.backgroundColor = '#00ffff';
+                    dots[i].style.boxShadow = '0 0 8px #00ffff';
+                    dots[i].style.borderColor = '#00ffff';
+                } else {
+                    dots[i].style.backgroundColor = 'transparent';
+                    dots[i].style.boxShadow = 'none';
+                    dots[i].style.borderColor = 'rgba(0,255,255,0.4)';
+                }
+            }
+
+            // 更新威胁等级UI
+            const threatLevel = getThreatLevel();
+            const threatDisplay = document.getElementById('threatDisplay');
+            const blocks = '▮'.repeat(threatLevel) + '▯'.repeat(5 - threatLevel);
+            threatDisplay.textContent = blocks;
+            const threatColors = ['#00ff88','#88ff00','#ffff00','#ff8800','#ff0040'];
+            threatDisplay.style.color = threatColors[threatLevel-1];
+            threatDisplay.style.textShadow = `0 0 8px ${threatColors[threatLevel-1]}`;
+
+            // 更新Combo UI
+            const comboPanel = document.getElementById('comboPanel');
+            const comboDisplay = document.getElementById('comboDisplay');
+            if(combo > 1) {
+                comboPanel.classList.remove('hidden');
+                comboDisplay.textContent = `x${Math.min(5, 1 + Math.floor(combo/3))}`;
+                comboTimer--;
+                if(comboTimer <= 0) combo = 0;
+            } else {
+                comboPanel.classList.add('hidden');
+            }
+
+            // 引擎音效随速度变化（遵循SFX开关+引擎音量）
+            if(engineOsc && engineGain) {
+                if(sfxEnabled) {
+                    engineOsc.frequency.value = 60 + speed*80;
+                    engineGain.gain.value = (0.02 + speed*0.04) * engineVolume;
+                } else {
+                    engineGain.gain.value = 0;
+                }
+            }
+
+            // 换道（限制不超过当前车道数）
+            const playerZMid = (player.zNear + player.zFar)/2;
+            const playerRoadInfo = getRoadInfo(playerZMid);
+            const playerMaxLane = Math.floor(playerRoadInfo.lanes) - 1;
+            if(player.lane > playerMaxLane) player.lane = playerMaxLane; // 车道减少时自动并道
+
+            if(keys.left && player.lane >0) {
+                player.lane--;
+                keys.left = false;
+                const p = project(player.x, player.zNear);
+                spawnParticles(p.x, p.y, '#00ffff', 10);
+                playSound('changeLane');
+            }
+            if(keys.right && player.lane < playerMaxLane) {
+                player.lane++;
+                keys.right = false;
+                const p = project(player.x, player.zNear);
+                spawnParticles(p.x, p.y, '#ff00aa', 10);
+                playSound('changeLane');
+            }
+            
+            // 计算目标X位置，保持在车道中心
+            player.targetX = -playerRoadInfo.width/2 + cam.laneWidth/2 + player.lane*cam.laneWidth;
+            player.x += (player.targetX - player.x)*0.18;
+            player.tilt = (player.targetX - player.x)*1.2;
+
+            updateTraffic();
+            updateEnergyOrbs();
+
+            // 排气粒子
+            if(speed>0.9 && Math.random()<0.5) {
+                const p = project(player.x + (Math.random()-0.5)*player.width*0.6, player.zNear -0.5);
+                particles.push({
+                    x:p.x,
+                    y:p.y,
+                    vx:(Math.random()-0.5)*2,
+                    vy:3+Math.random()*4,
+                    life:0.7,
+                    color: Math.random()>0.5?'#00ffff':'#ff00aa',
+                    len: 10
+                });
+            }
+        }
+
+        function render() {
+            ctx.fillStyle = '#05050d';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            drawEnvironment();
+            drawRoad();
+            drawSpeedLines();
+            drawNPCs();
+            drawEnergyOrbs();
+            if(gameRunning) drawPlayer();
+            drawParticles();
+            drawFX();
+        }
+
+        function loop() {
+            // 滚动路段，保证前方始终有足够路段
+            const farZ = cam.drawDist + 200;
+            while(roadSegments.length > 0 && roadSegments[roadSegments.length-1].zEnd < farZ) {
+                const lastSeg = roadSegments[roadSegments.length-1];
+                const diff = getDifficulty();
+                let newLanes = lastSeg.lanes;
+                if(newLanes === 3) {
+                    if(Math.random() >= 0.15) { // 85%概率变化
+                        // 难度越高越偏向2车道：50%→90%概率选2车道
+                        const twoProb = 0.5 + diff * 0.4;
+                        newLanes = Math.random() < twoProb ? 2 : 4;
+                    }
+                    // else 15%概率保持3车道不变
+                } else {
+                    // 2车道时更难离开（保持概率20%→40%），4车道时更容易离开（保持概率20%→10%）
+                    const keepProb = newLanes === 2 ? 0.2 + diff * 0.2 : 0.2 - diff * 0.1;
+                    if(Math.random() >= keepProb) newLanes = 3;
+                    // else 保持当前车道数不变
+                }
+                const segLen = 200 + Math.random()*150;
+                const curve = (Math.random() - 0.5) * 0.03;
+                roadSegments.push({
+                    zStart: lastSeg.zEnd,
+                    zEnd: lastSeg.zEnd + segLen,
+                    lanes: newLanes,
+                    curve: curve
+                });
+                // 移除太靠后的路段
+                if(roadSegments[0].zEnd < -50) roadSegments.shift();
+            }
+            // 路段整体随速度前移
+            roadSegments.forEach(seg => {
+                seg.zStart -= speed;
+                seg.zEnd -= speed;
+            });
+            // 弯道视角自动偏转
+            const playerCurve = getRoadCurve((player.zNear + player.zFar)/2);
+            curveOffset += (playerCurve * speed * 20 - curveOffset) * 0.05;
+            update();
+            checkMilestones();
+            updateNotifications();
+            updateCountdown();
+            render();
+            drawNotifications();
+            drawCountdown();
+            requestAnimationFrame(loop);
+        }
+
+        // 点击脉冲特效
+        document.addEventListener('click', e => {
+            const btn = e.target.closest('.wire-btn');
+            if(!btn) return;
+            btn.classList.remove('click-flash');
+            void btn.offsetWidth; // 强制回流
+            btn.classList.add('click-flash');
+        });
+
+        // 事件绑定
+        function startGame() {
+            initAudio();
+            init();
+            gameRunning = false;
+            gamePaused = false;
+            countdownActive = true;
+            countdownTimer = 150; // 2.5秒倒计时：3(50帧)→2(50帧)→1(50帧)
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('pauseScreen').classList.add('hidden');
+            document.getElementById('gameHUD').classList.add('hidden');
+            if(bgm.src && bgmPlaying) bgm.play();
+        }
+
+        function togglePause() {
+            if(!gameRunning) return;
+            gamePaused = !gamePaused;
+            const pauseScreen = document.getElementById('pauseScreen');
+            if(gamePaused) {
+                pauseScreen.classList.remove('hidden');
+                document.getElementById('gameHUD').classList.add('hidden');
+                document.getElementById('hudPauseBtn').classList.add('hidden');
+                if(engineGain) engineGain.gain.value = 0;
+                bgm.pause();
+            } else {
+                pauseScreen.classList.add('hidden');
+                document.getElementById('gameHUD').classList.remove('hidden');
+                document.getElementById('hudPauseBtn').classList.remove('hidden');
+                if(bgm.src && bgmPlaying) bgm.play();
+            }
+        }
+
+        function returnToMenu() {
+            gameRunning = false;
+            gamePaused = false;
+            combo = 0;
+            speed = 0;
+            if(engineGain) engineGain.gain.value = 0;
+            bgm.pause();
+            document.getElementById('pauseScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('gameHUD').classList.add('hidden');
+            document.getElementById('hudPauseBtn').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+        }
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        document.getElementById('resumeBtn').addEventListener('click', togglePause);
+        document.getElementById('mainMenuBtn').addEventListener('click', returnToMenu);
+        document.getElementById('hudPauseBtn').addEventListener('click', togglePause);
+
+        // 手机模式切换按钮绑定
+        document.getElementById('mobileModeBtnStart').addEventListener('click', toggleMobileMode);
+        document.getElementById('mobileModeBtnPause').addEventListener('click', toggleMobileMode);
+
+        // 虚拟按键绑定
+        function bindMobileBtn(id, key) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', e=>{
+                e.preventDefault();
+                keys[key] = true;
+            });
+            btn.addEventListener('touchend', e=>{
+                e.preventDefault();
+                keys[key] = false;
+            });
+            btn.addEventListener('mousedown', e=>{
+                e.preventDefault();
+                keys[key] = true;
+            });
+            btn.addEventListener('mouseup', e=>{
+                e.preventDefault();
+                keys[key] = false;
+            });
+            btn.addEventListener('mouseleave', e=>{
+                e.preventDefault();
+                keys[key] = false;
+            });
+        }
+        bindMobileBtn('btnLeft', 'left');
+        bindMobileBtn('btnRight', 'right');
+        bindMobileBtn('btnAccel', 'accel');
+        bindMobileBtn('btnBoost', 'boost');
+        bindMobileBtn('btnBrake', 'down');
+
+        // BGM事件绑定
+        document.getElementById('bgmInput').addEventListener('change', e=>{
+            const file = e.target.files[0];
+            if(!file) return;
+            bgm.src = URL.createObjectURL(file);
+            document.getElementById('bgmName').textContent = file.name;
+            bgmPlaying = true;
+            document.getElementById('bgmToggleBtn').textContent = 'MUSIC: ON';
+            if(gameRunning && !gamePaused) bgm.play();
+        });
+        document.getElementById('volumeSlider').addEventListener('input', e=>{
+            const vol = parseFloat(e.target.value);
+            bgm.volume = vol;
+            document.getElementById('volumeValue').textContent = Math.round(vol*100) + '%';
+        });
+        document.getElementById('bgmToggleBtn').addEventListener('click', ()=>{
+            if(!bgm.src) return;
+            bgmPlaying = !bgmPlaying;
+            const btn = document.getElementById('bgmToggleBtn');
+            if(bgmPlaying) {
+                btn.textContent = 'MUSIC: ON';
+                if(gameRunning && !gamePaused) bgm.play();
+            } else {
+                btn.textContent = 'MUSIC: OFF';
+                bgm.pause();
+            }
+        });
+        document.getElementById('sfxToggleBtn').addEventListener('click', ()=>{
+            sfxEnabled = !sfxEnabled;
+            const btn = document.getElementById('sfxToggleBtn');
+            btn.textContent = sfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+            if(!sfxEnabled && engineGain) engineGain.gain.value = 0;
+        });
+        document.getElementById('engineVolumeSlider').addEventListener('input', e=>{
+            engineVolume = parseFloat(e.target.value);
+            document.getElementById('engineVolumeValue').textContent = Math.round(engineVolume*100) + '%';
+        });
+
+        document.addEventListener('keydown', e=>{
+            if(e.code === 'Escape') {
+                togglePause();
+                return;
+            }
+            if(e.code === 'Space' && !gameRunning) startGame();
+            if(gamePaused) return;
+            if(e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if(e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if(e.code === 'ArrowUp' || e.code === 'KeyW') keys.accel = true; // W/↑普通加速
+            if(e.code === 'KeyX') keys.boost = true; // X超频加速
+            if(e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+        });
+        document.addEventListener('keyup', e=>{
+            if(e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if(e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if(e.code === 'ArrowUp' || e.code === 'KeyW') keys.accel = false;
+            if(e.code === 'KeyX') keys.boost = false;
+            if(e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+        });
+
+        // 触摸控制（非手机模式下滑动操作）
+        let touchStart = {x:0,y:0};
+        canvas.addEventListener('touchstart', e=>{
+            if(mobileMode) return;
+            touchStart.x = e.touches[0].clientX;
+            touchStart.y = e.touches[0].clientY;
+        });
+        canvas.addEventListener('touchmove', e=>{
+            if(mobileMode) return;
+            e.preventDefault();
+            const dx = e.touches[0].clientX - touchStart.x;
+            const dy = e.touches[0].clientY - touchStart.y;
+            if(Math.abs(dx) > 35) {
+                dx>0 ? keys.right=true : keys.left=true;
+                touchStart.x = e.touches[0].clientX;
+            }
+            if(Math.abs(dy) >35) {
+                dy<0 ? keys.accel=true : keys.down=true;
+                touchStart.y = e.touches[0].clientY;
+            }
+        });
+        canvas.addEventListener('touchend', ()=>{
+            if(mobileMode) return;
+            keys.left=keys.right=keys.accel=keys.boost=keys.down=false;
+        });
+
+        init();
+        loop();
+    </script>
+</body>
+</html>
